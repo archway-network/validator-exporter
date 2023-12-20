@@ -31,31 +31,31 @@ type Client struct {
 }
 
 func NewClient(cfg config.Config) (Client, error) {
-	valsInfo := Client{
+	client := Client{
 		cfg: cfg,
 	}
 
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		time.Duration(valsInfo.cfg.Timeout)*time.Second,
+		time.Duration(client.cfg.Timeout)*time.Second,
 	)
 
-	valsInfo.ctx = ctx
-	valsInfo.ctxCancel = cancel
+	client.ctx = ctx
+	client.ctxCancel = cancel
 
 	conn, err := cfg.GRPCConn()
 	if err != nil {
 		return Client{}, err
 	}
 
-	valsInfo.conn = conn
-	valsInfo.connClose = func() {
+	client.conn = conn
+	client.connClose = func() {
 		if err := conn.Close(); err != nil {
 			log.Error(fmt.Sprintf("failed to close connection :%s", err))
 		}
 	}
 
-	return valsInfo, nil
+	return client, nil
 }
 
 func (c Client) SignigInfos() ([]slashing.ValidatorSigningInfo, error) {
@@ -96,8 +96,11 @@ func (c Client) SignigInfos() ([]slashing.ValidatorSigningInfo, error) {
 func (c Client) Validators() ([]staking.Validator, error) {
 	vals := []staking.Validator{}
 	key := []byte{}
+
+	// https://github.com/cosmos/cosmos-sdk/issues/8045#issuecomment-829142440
 	encCfg := testutil.MakeTestEncodingConfig()
 	interfaceRegistry := encCfg.InterfaceRegistry
+
 	client := staking.NewQueryClient(c.conn)
 
 	for {
@@ -229,7 +232,7 @@ func LatestBlockHeight(cfg config.Config) (int64, error) {
 	}
 
 	height := blockResp.GetBlock().Header.Height
-	log.Debug(fmt.Sprintf("Latest height: %+v", height))
+	log.Debug(fmt.Sprintf("Latest height: %d", height))
 
 	return height, nil
 }
