@@ -53,17 +53,17 @@ func (vc ValidatorsCollector) Collect(ch chan<- prometheus.Metric) {
 func (vc ValidatorsCollector) missedBlocksMetrics(vals []types.Validator) []prometheus.Metric {
 	metrics := []prometheus.Metric{}
 
-	for _, v := range vals {
+	for _, val := range vals {
 		metrics = append(
 			metrics,
 			prometheus.MustNewConstMetric(
 				missedBlocks,
 				prometheus.GaugeValue,
-				float64(v.MissedBlocks),
+				float64(val.MissedBlocks),
 				[]string{
-					v.ConsAddress,
-					v.OperatorAddress,
-					v.Moniker,
+					val.ConsAddress,
+					val.OperatorAddress,
+					val.Moniker,
 				}...,
 			),
 		)
