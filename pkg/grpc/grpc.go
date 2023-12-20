@@ -115,13 +115,13 @@ func (c Client) Validators() ([]staking.Validator, error) {
 			return nil, fmt.Errorf("got empty response from validators endpoint")
 		}
 
-		for _, v := range stakingRes.GetValidators() {
-			err = v.UnpackInterfaces(interfaceRegistry)
+		for _, val := range stakingRes.GetValidators() {
+			err = val.UnpackInterfaces(interfaceRegistry)
 			if err != nil {
 				return nil, err
 			}
 
-			vals = append(vals, v)
+			vals = append(vals, val)
 		}
 
 		page := stakingRes.GetPagination()
