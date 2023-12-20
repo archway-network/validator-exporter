@@ -30,12 +30,11 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	ctx, cancel := context.WithTimeout(
+	//nolint:govet
+	ctx, _ := context.WithTimeout(
 		context.Background(),
 		time.Duration(cfg.Timeout)*time.Second,
 	)
-
-	defer cancel()
 
 	_, err := grpc.LatestBlockHeight(ctx, cfg)
 	if err != nil {
