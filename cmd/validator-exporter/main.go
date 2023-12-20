@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/caarlos0/env/v10"
 	"github.com/prometheus/client_golang/prometheus"
@@ -28,7 +30,14 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	_, err := grpc.LatestBlockHeight(cfg)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Duration(cfg.Timeout)*time.Second,
+	)
+
+	defer cancel()
+
+	_, err := grpc.LatestBlockHeight(ctx, cfg)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

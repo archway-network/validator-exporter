@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -36,7 +38,14 @@ func (vc ValidatorsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (vc ValidatorsCollector) Collect(ch chan<- prometheus.Metric) {
-	vals, err := grpc.SigningValidators(vc.Cfg)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Duration(vc.Cfg.Timeout)*time.Second,
+	)
+
+	defer cancel()
+
+	vals, err := grpc.SigningValidators(ctx, vc.Cfg)
 	if err != nil {
 		log.Error(fmt.Sprintf("error getting signing validators: %s", err))
 	} else {

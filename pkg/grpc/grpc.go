@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"time"
 
 	base "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
 
@@ -23,8 +22,6 @@ import (
 const valConsStr = "valcons"
 
 type Client struct {
-	ctx       context.Context
-	ctxCancel context.CancelFunc
 	cfg       config.Config
 	conn      *grpc.ClientConn
 	connClose func()
@@ -34,14 +31,6 @@ func NewClient(cfg config.Config) (Client, error) {
 	client := Client{
 		cfg: cfg,
 	}
-
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		time.Duration(client.cfg.Timeout)*time.Second,
-	)
-
-	client.ctx = ctx
-	client.ctxCancel = cancel
 
 	conn, err := cfg.GRPCConn()
 	if err != nil {
@@ -58,7 +47,7 @@ func NewClient(cfg config.Config) (Client, error) {
 	return client, nil
 }
 
-func (c Client) SignigInfos() ([]slashing.ValidatorSigningInfo, error) {
+func (c Client) SignigInfos(ctx context.Context) ([]slashing.ValidatorSigningInfo, error) {
 	infos := []slashing.ValidatorSigningInfo{}
 	key := []byte{}
 	client := slashing.NewQueryClient(c.conn)
@@ -66,7 +55,7 @@ func (c Client) SignigInfos() ([]slashing.ValidatorSigningInfo, error) {
 	for {
 		request := &slashing.QuerySigningInfosRequest{Pagination: &query.PageRequest{Key: key}}
 
-		slashRes, err := client.SigningInfos(c.ctx, request)
+		slashRes, err := client.SigningInfos(ctx, request)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +82,7 @@ func (c Client) SignigInfos() ([]slashing.ValidatorSigningInfo, error) {
 	return infos, nil
 }
 
-func (c Client) Validators() ([]staking.Validator, error) {
+func (c Client) Validators(ctx context.Context) ([]staking.Validator, error) {
 	vals := []staking.Validator{}
 	key := []byte{}
 
@@ -106,7 +95,7 @@ func (c Client) Validators() ([]staking.Validator, error) {
 	for {
 		request := &staking.QueryValidatorsRequest{Pagination: &query.PageRequest{Key: key}}
 
-		stakingRes, err := client.Validators(c.ctx, request)
+		stakingRes, err := client.Validators(ctx, request)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +149,7 @@ func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validat
 	return vMap, nil
 }
 
-func SigningValidators(cfg config.Config) ([]types.Validator, error) {
+func SigningValidators(ctx context.Context, cfg config.Config) ([]types.Validator, error) {
 	sVals := []types.Validator{}
 
 	client, err := NewClient(cfg)
@@ -171,16 +160,15 @@ func SigningValidators(cfg config.Config) ([]types.Validator, error) {
 	}
 
 	defer client.connClose()
-	defer client.ctxCancel()
 
-	sInfos, err := client.SignigInfos()
+	sInfos, err := client.SignigInfos(ctx)
 	if err != nil {
 		log.Error(err.Error())
 
 		return []types.Validator{}, err
 	}
 
-	vals, err := client.Validators()
+	vals, err := client.Validators(ctx)
 	if err != nil {
 		log.Error(err.Error())
 
@@ -210,7 +198,7 @@ func SigningValidators(cfg config.Config) ([]types.Validator, error) {
 	return sVals, nil
 }
 
-func LatestBlockHeight(cfg config.Config) (int64, error) {
+func LatestBlockHeight(ctx context.Context, cfg config.Config) (int64, error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		log.Error(err.Error())
@@ -219,12 +207,11 @@ func LatestBlockHeight(cfg config.Config) (int64, error) {
 	}
 
 	defer client.connClose()
-	defer client.ctxCancel()
 
 	request := &base.GetLatestBlockRequest{}
 	baseClient := base.NewServiceClient(client.conn)
 
-	blockResp, err := baseClient.GetLatestBlock(client.ctx, request)
+	blockResp, err := baseClient.GetLatestBlock(ctx, request)
 	if err != nil {
 		log.Error(err.Error())
 
