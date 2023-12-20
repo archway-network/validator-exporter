@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	base "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
@@ -20,6 +21,12 @@ import (
 )
 
 const valConsStr = "valcons"
+
+var errEndpoint = errors.New("grpc endpoint error")
+
+func endpointError(msg string) error {
+	return fmt.Errorf("%w: %s", errEndpoint, msg)
+}
 
 type Client struct {
 	cfg       config.Config
@@ -61,7 +68,7 @@ func (c Client) SignigInfos(ctx context.Context) ([]slashing.ValidatorSigningInf
 		}
 
 		if slashRes == nil {
-			return nil, fmt.Errorf("got empty response from signing infos endpoint")
+			return nil, endpointError("got empty response from signing infos endpoint")
 		}
 
 		infos = append(infos, slashRes.GetInfo()...)
@@ -101,7 +108,7 @@ func (c Client) Validators(ctx context.Context) ([]staking.Validator, error) {
 		}
 
 		if stakingRes == nil {
-			return nil, fmt.Errorf("got empty response from validators endpoint")
+			return nil, endpointError("got empty response from validators endpoint")
 		}
 
 		for _, val := range stakingRes.GetValidators() {
