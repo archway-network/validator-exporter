@@ -143,8 +143,8 @@ func (c Client) Validators() ([]staking.Validator, error) {
 func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validator, error) {
 	vMap := map[string]staking.Validator{}
 
-	for _, v := range vals {
-		addr, err := v.GetConsAddr()
+	for _, val := range vals {
+		addr, err := val.GetConsAddr()
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +154,7 @@ func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validat
 			return nil, err
 		}
 
-		vMap[consAddr] = v
+		vMap[consAddr] = val
 	}
 
 	return vMap, nil
