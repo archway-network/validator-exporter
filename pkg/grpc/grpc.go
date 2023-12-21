@@ -150,7 +150,9 @@ func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validat
 	return vMap, nil
 }
 
-func SigningValidators(ctx context.Context, cfg config.Config) (sVals []types.Validator, err error) {
+func SigningValidators(ctx context.Context, cfg config.Config) ([]types.Validator, error) {
+	sVals := []types.Validator{}
+
 	client, err := NewClient(cfg)
 	if err != nil {
 		log.Error(err.Error())
@@ -162,11 +164,7 @@ func SigningValidators(ctx context.Context, cfg config.Config) (sVals []types.Va
 
 	defer func() {
 		if tempErr := client.conn.Close(); tempErr != nil {
-			if err != nil {
-				err = endpointError(fmt.Errorf("%w: %s", err, tempErr).Error())
-			} else {
-				err = endpointError(tempErr.Error())
-			}
+			log.Error(tempErr.Error())
 		}
 	}()
 
@@ -206,7 +204,7 @@ func SigningValidators(ctx context.Context, cfg config.Config) (sVals []types.Va
 	return sVals, nil
 }
 
-func LatestBlockHeight(ctx context.Context, cfg config.Config) (height int64, err error) {
+func LatestBlockHeight(ctx context.Context, cfg config.Config) (int64, error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		log.Error(err.Error())
@@ -221,11 +219,7 @@ func LatestBlockHeight(ctx context.Context, cfg config.Config) (height int64, er
 
 	defer func() {
 		if tempErr := client.conn.Close(); tempErr != nil {
-			if err != nil {
-				err = endpointError(fmt.Errorf("%w: %s", err, tempErr).Error())
-			} else {
-				err = endpointError(tempErr.Error())
-			}
+			log.Error(tempErr.Error())
 		}
 	}()
 
@@ -235,7 +229,7 @@ func LatestBlockHeight(ctx context.Context, cfg config.Config) (height int64, er
 		return 0, endpointError(err.Error())
 	}
 
-	height = blockResp.GetBlock().Header.Height
+	height := blockResp.GetBlock().Header.Height
 	log.Debug(fmt.Sprintf("Latest height: %d", height))
 
 	return height, nil
