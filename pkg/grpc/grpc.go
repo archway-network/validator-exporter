@@ -22,16 +22,15 @@ import (
 
 const valConsStr = "valcons"
 
-var errEndpoint = errors.New("grpc endpoint error")
+var errEndpoint = errors.New("grpc error")
 
 func endpointError(msg string) error {
 	return fmt.Errorf("%w: %s", errEndpoint, msg)
 }
 
 type Client struct {
-	cfg       config.Config
-	conn      *grpc.ClientConn
-	connClose func()
+	cfg  config.Config
+	conn *grpc.ClientConn
 }
 
 func NewClient(cfg config.Config) (Client, error) {
@@ -41,15 +40,10 @@ func NewClient(cfg config.Config) (Client, error) {
 
 	conn, err := cfg.GRPCConn()
 	if err != nil {
-		return Client{}, err
+		return Client{}, endpointError(err.Error())
 	}
 
 	client.conn = conn
-	client.connClose = func() {
-		if err := conn.Close(); err != nil {
-			log.Error(fmt.Sprintf("failed to close connection :%s", err))
-		}
-	}
 
 	return client, nil
 }
@@ -64,7 +58,7 @@ func (c Client) SignigInfos(ctx context.Context) ([]slashing.ValidatorSigningInf
 
 		slashRes, err := client.SigningInfos(ctx, request)
 		if err != nil {
-			return nil, err
+			return nil, endpointError(err.Error())
 		}
 
 		if slashRes == nil {
@@ -104,7 +98,7 @@ func (c Client) Validators(ctx context.Context) ([]staking.Validator, error) {
 
 		stakingRes, err := client.Validators(ctx, request)
 		if err != nil {
-			return nil, err
+			return nil, endpointError(err.Error())
 		}
 
 		if stakingRes == nil {
@@ -114,7 +108,7 @@ func (c Client) Validators(ctx context.Context) ([]staking.Validator, error) {
 		for _, val := range stakingRes.GetValidators() {
 			err = val.UnpackInterfaces(interfaceRegistry)
 			if err != nil {
-				return nil, err
+				return nil, endpointError(err.Error())
 			}
 
 			vals = append(vals, val)
@@ -142,12 +136,12 @@ func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validat
 	for _, val := range vals {
 		addr, err := val.GetConsAddr()
 		if err != nil {
-			return nil, err
+			return nil, endpointError(err.Error())
 		}
 
 		consAddr, err := bech32.ConvertAndEncode(c.cfg.Prefix+valConsStr, sdk.ConsAddress(addr))
 		if err != nil {
-			return nil, err
+			return nil, endpointError(err.Error())
 		}
 
 		vMap[consAddr] = val
@@ -156,37 +150,44 @@ func (c Client) valConsMap(vals []staking.Validator) (map[string]staking.Validat
 	return vMap, nil
 }
 
-func SigningValidators(ctx context.Context, cfg config.Config) ([]types.Validator, error) {
-	sVals := []types.Validator{}
-
+func SigningValidators(ctx context.Context, cfg config.Config) (sVals []types.Validator, err error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		log.Error(err.Error())
 
-		return []types.Validator{}, err
+		return []types.Validator{}, endpointError(err.Error())
 	}
 
-	defer client.connClose()
-
 	sInfos, err := client.SignigInfos(ctx)
+
+	defer func() {
+		if tempErr := client.conn.Close(); tempErr != nil {
+			if err != nil {
+				err = endpointError(fmt.Errorf("%w: %s", err, tempErr).Error())
+			} else {
+				err = endpointError(tempErr.Error())
+			}
+		}
+	}()
+
 	if err != nil {
 		log.Error(err.Error())
 
-		return []types.Validator{}, err
+		return []types.Validator{}, endpointError(err.Error())
 	}
 
 	vals, err := client.Validators(ctx)
 	if err != nil {
 		log.Error(err.Error())
 
-		return []types.Validator{}, err
+		return []types.Validator{}, endpointError(err.Error())
 	}
 
 	valsMap, err := client.valConsMap(vals)
 	if err != nil {
 		log.Error(err.Error())
 
-		return []types.Validator{}, err
+		return []types.Validator{}, endpointError(err.Error())
 	}
 
 	for _, info := range sInfos {
@@ -205,27 +206,36 @@ func SigningValidators(ctx context.Context, cfg config.Config) ([]types.Validato
 	return sVals, nil
 }
 
-func LatestBlockHeight(ctx context.Context, cfg config.Config) (int64, error) {
+func LatestBlockHeight(ctx context.Context, cfg config.Config) (height int64, err error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		log.Error(err.Error())
 
-		return 0, err
+		return 0, endpointError(err.Error())
 	}
-
-	defer client.connClose()
 
 	request := &base.GetLatestBlockRequest{}
 	baseClient := base.NewServiceClient(client.conn)
 
 	blockResp, err := baseClient.GetLatestBlock(ctx, request)
+
+	defer func() {
+		if tempErr := client.conn.Close(); tempErr != nil {
+			if err != nil {
+				err = endpointError(fmt.Errorf("%w: %s", err, tempErr).Error())
+			} else {
+				err = endpointError(tempErr.Error())
+			}
+		}
+	}()
+
 	if err != nil {
 		log.Error(err.Error())
 
-		return 0, err
+		return 0, endpointError(err.Error())
 	}
 
-	height := blockResp.GetBlock().Header.Height
+	height = blockResp.GetBlock().Header.Height
 	log.Debug(fmt.Sprintf("Latest height: %d", height))
 
 	return height, nil
