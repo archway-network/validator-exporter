@@ -2,12 +2,20 @@ package config
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var errConfig = errors.New("config error")
+
+func configError(msg string) error {
+	return fmt.Errorf("%w: %s", errConfig, msg)
+}
 
 type Config struct {
 	Addr    string `env:"GRPC_ADDR" envDefault:"grpc.constantine.archway.tech:443"`
@@ -28,6 +36,9 @@ func (c Config) GRPCConn() (*grpc.ClientConn, error) {
 		transportCreds,
 		grpc.WithDefaultCallOptions(grpc.ForceCodec(codec.NewProtoCodec(nil).GRPCCodec())),
 	)
+	if err != nil {
+		return nil, configError(err.Error())
+	}
 
-	return conn, err
+	return conn, nil
 }
