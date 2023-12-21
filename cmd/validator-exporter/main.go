@@ -17,8 +17,13 @@ import (
 	log "github.com/archway-network/validator-exporter/pkg/logger"
 )
 
+const (
+	defaultPort = 8008
+	timeout     = 10
+)
+
 func main() {
-	port := flag.Int("p", 8008, "Server port")
+	port := flag.Int("p", defaultPort, "Server port")
 	logLevel := log.LevelFlag()
 
 	flag.Parse()
@@ -47,9 +52,21 @@ func main() {
 
 	prometheus.MustRegister(valsCollector)
 
-	http.Handle("/metrics", promhttp.Handler())
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
 
 	addr := fmt.Sprintf(":%d", *port)
+
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  timeout * time.Second,
+		WriteTimeout: timeout * time.Second,
+	}
+
 	log.Info(fmt.Sprintf("Starting server on addr: %s", addr))
-	log.Fatal(http.ListenAndServe(addr, nil).Error())
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err.Error())
+	}
 }
