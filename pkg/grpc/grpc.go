@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	base "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
 
@@ -20,7 +21,10 @@ import (
 	log "github.com/archway-network/validator-exporter/pkg/logger"
 )
 
-const valConsStr = "valcons"
+const (
+	valConsStr       = "valcons"
+	bondStatusPrefix = "BOND_STATUS_"
+)
 
 var errEndpoint = errors.New("grpc error")
 
@@ -198,6 +202,9 @@ func SigningValidators(ctx context.Context, cfg config.Config) ([]types.Validato
 			OperatorAddress: valsMap[info.Address].OperatorAddress,
 			Moniker:         valsMap[info.Address].Description.Moniker,
 			MissedBlocks:    info.MissedBlocksCounter,
+			Jailed:          valsMap[info.Address].IsJailed(),
+			Tombstoned:      info.Tombstoned,
+			BondStatus:      bondStatus(valsMap[info.Address].GetStatus()),
 		})
 	}
 
@@ -233,4 +240,9 @@ func LatestBlockHeight(ctx context.Context, cfg config.Config) (int64, error) {
 	log.Debug(fmt.Sprintf("Latest height: %d", height))
 
 	return height, nil
+}
+
+func bondStatus(status staking.BondStatus) string {
+	statusWithoutPrefix, _ := strings.CutPrefix(status.String(), bondStatusPrefix)
+	return strings.ToLower(statusWithoutPrefix)
 }
