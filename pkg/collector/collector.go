@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,9 +23,14 @@ var missedBlocks = prometheus.NewDesc(
 	missedBlocksMetricName,
 	"Returns missed blocks for a validator.",
 	[]string{
+		"chain_name",
+		"chain_id",
 		"valcons",
 		"valoper",
 		"moniker",
+		"jailed",
+		"tombstoned",
+		"bond_status",
 	},
 	nil,
 )
@@ -70,9 +76,14 @@ func (vc ValidatorsCollector) missedBlocksMetrics(vals []types.Validator) []prom
 				prometheus.GaugeValue,
 				float64(val.MissedBlocks),
 				[]string{
+					vc.Cfg.ChainName,
+					vc.Cfg.ChainID,
 					val.ConsAddress,
 					val.OperatorAddress,
 					val.Moniker,
+					strconv.FormatBool(val.Jailed),
+					strconv.FormatBool(val.Tombstoned),
+					val.BondStatus,
 				}...,
 			),
 		)
