@@ -244,5 +244,6 @@ func LatestBlockHeight(ctx context.Context, cfg config.Config) (int64, error) {
 
 func bondStatus(status staking.BondStatus) string {
 	statusWithoutPrefix, _ := strings.CutPrefix(status.String(), bondStatusPrefix)
+	
 	return strings.ToLower(statusWithoutPrefix)
 }
